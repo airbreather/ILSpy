@@ -52,7 +52,7 @@ namespace ICSharpCode.ILSpy.TreeNodes.Analyzer
 		{
 			if (!type.HasInterfaces)
 				yield break;
-			TypeReference implementedInterfaceRef = type.Interfaces.FirstOrDefault(i => i.Resolve() == analyzedMethod.DeclaringType);
+			TypeReference implementedInterfaceRef = type.Interfaces.Select(i => i.InterfaceType).FirstOrDefault(i => i.Resolve() == analyzedMethod.DeclaringType);
 			if (implementedInterfaceRef == null)
 				yield break;
 

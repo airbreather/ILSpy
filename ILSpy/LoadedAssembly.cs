@@ -139,30 +139,11 @@ namespace ICSharpCode.ILSpy
 		
 		private void LoadSymbols(ModuleDefinition module)
 		{
-			if (!module.HasDebugHeader) {
-				return;
+			var rd = new Mono.Cecil.Cil.DefaultSymbolReaderProvider(false).GetSymbolReader(module, module.FileName);
+			if (rd != null)
+			{
+				module.ReadSymbols(rd);
 			}
-			byte[] headerBytes;
-			var debugHeader = module.GetDebugHeader(out headerBytes);
-			if (debugHeader.Type != 2) {
-				// the debug type is not IMAGE_DEBUG_TYPE_CODEVIEW
-				return;
-			}
-			if (debugHeader.MajorVersion != 0 || debugHeader.MinorVersion != 0) {
-				// the PDB type is not compatible with PdbReaderProvider. It is probably a Portable PDB
-				return;
-			}
-
-			// search for pdb in same directory as dll
-			string pdbName = Path.Combine(Path.GetDirectoryName(fileName), Path.GetFileNameWithoutExtension(fileName) + ".pdb");
-			if (File.Exists(pdbName)) {
-				using (Stream s = File.OpenRead(pdbName)) {
-					module.ReadSymbols(new Mono.Cecil.Pdb.PdbReaderProvider().GetSymbolReader(module, s));
-				}
-				return;
-			}
-			
-			// TODO: use symbol cache, get symbols from microsoft
 		}
 		
 		[ThreadStatic]
@@ -188,39 +169,41 @@ namespace ICSharpCode.ILSpy
 				}
 			}
 		}
-		
+
 		sealed class MyAssemblyResolver : IAssemblyResolver
 		{
 			readonly LoadedAssembly parent;
-			
+
 			public MyAssemblyResolver(LoadedAssembly parent)
 			{
 				this.parent = parent;
 			}
-			
+
 			public AssemblyDefinition Resolve(AssemblyNameReference name)
 			{
 				var node = parent.LookupReferencedAssembly(name);
 				return node != null ? node.AssemblyDefinition : null;
 			}
-			
+
 			public AssemblyDefinition Resolve(AssemblyNameReference name, ReaderParameters parameters)
 			{
 				var node = parent.LookupReferencedAssembly(name);
 				return node != null ? node.AssemblyDefinition : null;
 			}
-			
+
 			public AssemblyDefinition Resolve(string fullName)
 			{
 				var node = parent.LookupReferencedAssembly(fullName);
 				return node != null ? node.AssemblyDefinition : null;
 			}
-			
+
 			public AssemblyDefinition Resolve(string fullName, ReaderParameters parameters)
 			{
 				var node = parent.LookupReferencedAssembly(fullName);
 				return node != null ? node.AssemblyDefinition : null;
 			}
+
+			void IDisposable.Dispose() { }
 		}
 		
 		public IAssemblyResolver GetAssemblyResolver()

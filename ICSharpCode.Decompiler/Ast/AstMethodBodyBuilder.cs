@@ -99,7 +99,7 @@ namespace ICSharpCode.Decompiler.Ast
 			var localVariables = ilMethod.GetSelfAndChildrenRecursive<ILExpression>().Select(e => e.Operand as ILVariable)
 				.Where(v => v != null && !v.IsParameter).Distinct();
 			Debug.Assert(context.CurrentMethod == methodDef);
-			NameVariables.AssignNamesToVariables(context, astBuilder.Parameters, localVariables, ilMethod);
+			NameVariables.AssignNamesToVariables(context, astBuilder.Parameters, localVariables, ilMethod, methodDef.DebugInformation);
 			
 			if (parameters != null) {
 				foreach (var pair in (from p in parameters
@@ -699,7 +699,7 @@ namespace ICSharpCode.Decompiler.Ast
 						} else {
 							loadName = "ldtoken";
 							handleName = "Handle";
-							referencedEntity = new IdentifierExpression(FormatByteCodeOperand(byteCode.Operand));
+							referencedEntity = new IdentifierExpression(FormatByteCodeOperand(byteCode.Operand, methodDef.DebugInformation));
 						}
 						return new IdentifierExpression(loadName).Invoke(referencedEntity).WithAnnotation(new LdTokenAnnotation()).Member(handleName);
 					}
@@ -1110,19 +1110,19 @@ namespace ICSharpCode.Decompiler.Ast
 			#endif
 		}
 		
-		static Expression InlineAssembly(ILExpression byteCode, List<Ast.Expression> args)
+		Expression InlineAssembly(ILExpression byteCode, List<Ast.Expression> args)
 		{
 			#if DEBUG
 			unhandledOpcodes.AddOrUpdate(byteCode.Code, c => 1, (c, n) => n+1);
 			#endif
 			// Output the operand of the unknown IL code as well
 			if (byteCode.Operand != null) {
-				args.Insert(0, new IdentifierExpression(FormatByteCodeOperand(byteCode.Operand)));
+				args.Insert(0, new IdentifierExpression(FormatByteCodeOperand(byteCode.Operand, methodDef.DebugInformation)));
 			}
 			return new IdentifierExpression(byteCode.Code.GetName()).Invoke(args);
 		}
 		
-		static string FormatByteCodeOperand(object operand)
+		static string FormatByteCodeOperand(object operand, MethodDebugInformation methodDebugInformation)
 		{
 			if (operand == null) {
 				return string.Empty;
@@ -1133,7 +1133,7 @@ namespace ICSharpCode.Decompiler.Ast
 			} else if (operand is Cecil.TypeReference) {
 				return ((Cecil.TypeReference)operand).FullName;
 			} else if (operand is VariableDefinition) {
-				return ((VariableDefinition)operand).Name;
+				return ((VariableDefinition)operand).GetName(methodDebugInformation);
 			} else if (operand is ParameterDefinition) {
 				return ((ParameterDefinition)operand).Name;
 			} else if (operand is FieldReference) {
